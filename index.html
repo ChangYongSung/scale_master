@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>음이름과 계이름을 보여주는 피아노</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════
+   기본 리셋 & 바디
+═══════════════════════════════════════ */
+* { margin:0; padding:0; box-sizing:border-box;
+    user-select:none; -webkit-tap-highlight-color:transparent; }
+
+body {
+  font-family: 'Noto Sans KR', sans-serif;
+  background: linear-gradient(160deg, #0e1a2b 0%, #1a2a3c 60%, #0e1520 100%);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 28px 10px 50px;
+  color: #fff;
+}
+
+h1 {
+  font-size: clamp(21px, 3.3vw, 32px);
+  font-weight: 900;
+  letter-spacing: 3px;
+  color: #e8d8b4;
+  margin-bottom: 20px;
+  text-shadow: 0 2px 12px rgba(0,0,0,0.6);
+  text-align: center;
+}
+
+/* ═══════════════════════════════════════
+   음계 버튼 영역
+═══════════════════════════════════════ */
+.scale-controls {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+}
+
+.group-box {
+  display: flex;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 14px;
+  align-items: center;
+}
+.group-box.major-box {
+  background: rgba(60,130,240,0.22);
+  border: 2px solid rgba(80,160,255,0.65);
+}
+.group-box.minor-box {
+  background: rgba(160,70,210,0.22);
+  border: 2px solid rgba(180,100,240,0.65);
+}
+
+.scale-btn {
+  padding: 11px 20px;
+  border-radius: 9px;
+  border: 1.5px solid rgba(255,255,255,0.35);
+  background: rgba(255,255,255,0.20);
+  color: #fff;
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.scale-btn:hover  { background: rgba(255,255,255,0.32); color:#fff; }
+.scale-btn:active { transform: translateY(2px); filter: brightness(0.85); }
+
+.scale-btn.active-major {
+  background: #3a80e8;
+  border-color: #90c8ff;
+  color: #fff;
+  box-shadow: 0 0 18px rgba(60,130,240,0.70);
+}
+.scale-btn.active-minor {
+  background: #9040cc;
+  border-color: #d090ff;
+  color: #fff;
+  box-shadow: 0 0 18px rgba(160,70,210,0.70);
+}
+
+.reset-btn {
+  padding: 11px 30px;
+  border-radius: 9px;
+  border: 1.5px solid rgba(240,100,80,0.75);
+  background: rgba(240,100,80,0.32);
+  color: #ffd8d0;
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.reset-btn:hover  { background: rgba(240,100,80,0.52); color:#fff; }
+.reset-btn:active { transform: translateY(2px); }
+
+/* ═══════════════════════════════════════
+   피아노 프레임
+═══════════════════════════════════════ */
+.piano-frame {
+  background: linear-gradient(180deg,
+    #6b2010 0%, #4e1608 35%, #5a1c0e 65%, #3e1005 100%);
+  border-radius: 16px;
+  padding: 14px 16px 16px;
+  box-shadow:
+    inset 0 2px 8px rgba(255,160,80,0.12),
+    0 16px 52px rgba(0,0,0,0.70);
+  border: 2px solid #7a3018;
+  display: inline-block;
+  max-width: 100%;
+}
+
+/* ═══════════════════════════════════════
+   LCD (두 줄)
+═══════════════════════════════════════ */
+.piano-lcd {
+  background: linear-gradient(180deg,
+    #aec898 0%, #c2d8a2 50%, #a4be8e 100%);
+  border: 3px solid #4a2e0e;
+  border-radius: 8px;
+  padding: 8px 16px;
+  margin-bottom: 12px;
+  width: 100%;
+  min-height: 96px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: inset 0 2px 7px rgba(0,0,0,0.22);
+}
+.lcd-line1 {
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: clamp(14px, 2.3vw, 23px);
+  font-weight: 900;
+  color: #0c280a;
+  text-align: center;
+  line-height: 1.3;
+}
+.lcd-line2 {
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: clamp(13px, 2.0vw, 22px);
+  font-weight: 700;
+  color: #183814;
+  text-align: center;
+  line-height: 1.3;
+}
+
+/* ═══════════════════════════════════════
+   건반 영역
+═══════════════════════════════════════ */
+.piano-key-area {
+  background: #0e0e0e;
+  border-radius: 6px;
+  padding: 8px 6px 6px 6px;
+  box-shadow: inset 0 4px 10px rgba(0,0,0,0.78);
+  overflow-x: auto;
+  max-width: 100%;
+}
+.piano-key-area::-webkit-scrollbar { height: 8px; }
+.piano-key-area::-webkit-scrollbar-track { background:#1a1a1a; border-radius:4px; }
+.piano-key-area::-webkit-scrollbar-thumb { background:#555; border-radius:4px; }
+
+#piano-keyboard {
+  position: relative;
+  display: flex;
+  min-width: max-content;
+  /* 높이는 흰 건반 height로 결정 */
+}
+
+/* ═══════════════════════════════════════
+   건반 공통
+═══════════════════════════════════════ */
+.key {
+  position: relative;
+  cursor: pointer;
+  touch-action: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+/* ─── 흰 건반: 가로 +10%(57px), 상단 -10% (전체 225px = 상단 153px + 하단 72px) ─── */
+.key.white {
+  width: 57px;
+  height: 203px;
+  background: linear-gradient(180deg, #f4efe7 0%, #ffffff 35%, #eeece4 100%);
+  border: 1px solid #c0b8a8;
+  border-top: none;
+  border-radius: 0 0 7px 7px;
+  z-index: 1;
+  box-shadow:
+    inset -1px 0 0 rgba(0,0,0,0.07),
+    0 5px 10px rgba(0,0,0,0.28);
+}
+.key.white:hover {
+  background: linear-gradient(180deg, #e8e3db 0%, #f5f1e9 35%, #e2dfd7 100%);
+}
+
+/* ─── 검은 건반: 가로 +10%(37px), 높이 -10%(137px) ─── */
+.key.black {
+  width: 37px;
+  height: 123px;
+  background: linear-gradient(180deg, #2c2218 0%, #1a1408 55%, #0e0c04 100%);
+  border-radius: 0 0 5px 5px;
+  z-index: 2;
+  margin: 0 -18px;
+  box-shadow:
+    2px 5px 10px rgba(0,0,0,0.65),
+    inset 0 -2px 4px rgba(255,255,255,0.04);
+  padding-bottom: 0;
+}
+.key.black:hover {
+  background: linear-gradient(180deg, #3c2e22 0%, #2a1e10 55%, #180e06 100%);
+}
+
+/* 건반 누를 때 */
+.key.white.pressed {
+  background: linear-gradient(180deg, #d0cec8 0%, #dedad2 100%) !important;
+  transform: translateY(2px);
+  box-shadow: inset 0 2px 5px rgba(0,0,0,0.22) !important;
+}
+.key.black.pressed {
+  background: linear-gradient(180deg, #1c1610 0%, #0e0c08 100%) !important;
+  transform: translateY(2px);
+}
+
+/* ═══════════════════════════════════════
+   음이름 라벨 (흰 건반 아래, 영어+한글 세로)
+═══════════════════════════════════════ */
+.note-name-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  pointer-events: none;
+  padding-bottom: 7px;
+  gap: 2px;
+  height: 72px;       /* 흰 건반 하단 음이름 영역 */
+  width: 100%;
+  flex-shrink: 0;
+}
+.note-eng {
+  font-size: 16px;
+  font-weight: 900;
+  color: #111111;
+  line-height: 1.0;
+}
+.note-kor {
+  font-size: 13px;
+  font-weight: 900;
+  color: #1a1a1a;
+  line-height: 1.0;
+}
+
+/* ═══════════════════════════════════════
+   계이름 뱃지 (원 안에 글씨)
+═══════════════════════════════════════ */
+.solfege-badge {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-family: 'Noto Sans KR', sans-serif;
+  font-weight: 900;
+  pointer-events: none;
+  z-index: 10;
+  line-height: 1;
+}
+
+/* 흰 건반 뱃지: 검은건반 기준으로 크기·색 통일, 음이름과 겹치지 않게 위치 조정 */
+.key.white .solfege-badge {
+  width: 30px;
+  height: 30px;
+  font-size: 11px;
+  bottom: 58px;        /* 검은건반 아래끝(123px) 보다 낮은 위치에 배치 */
+  left: 50%;
+  transform: translateX(-50%);
+  background: #e8c030;
+  color: #1a0a00;
+  border: 2px solid #a07000;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+}
+.key.white .solfege-badge.tonic {
+  background: #d01818;
+  border-color: #800000;
+  color: #fff;
+  width: 30px;
+  height: 30px;
+  font-size: 11px;
+  bottom: 58px;
+  box-shadow: 0 0 9px rgba(210,30,30,0.55), 0 2px 6px rgba(0,0,0,0.4);
+}
+
+/* 검은 건반 뱃지: 기준 크기 */
+.key.black .solfege-badge {
+  width: 30px;
+  height: 30px;
+  font-size: 11px;
+  bottom: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #e8c030;
+  color: #1a0a00;
+  border: 2px solid #a07000;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.45);
+}
+.key.black .solfege-badge.tonic {
+  background: #d01818;
+  border-color: #800000;
+  color: #fff;
+  box-shadow: 0 0 8px rgba(210,30,30,0.55), 0 2px 5px rgba(0,0,0,0.45);
+}
+
+/* 계이름이 표시된 건반: 약한 주황빛으로 구분 */
+.key.white.has-solfege {
+  background: linear-gradient(180deg, #f5e8d8 0%, #fff4e8 35%, #f0e4d0 100%) !important;
+}
+.key.black.has-solfege {
+  background: linear-gradient(180deg, #3a2a14 0%, #2a1c0a 55%, #1c1206 100%) !important;
+}
+
+/* 뱃지 숨김 */
+.solfege-badge.hidden { display: none; }
+
+/* ═══════════════════════════════════════
+   악기 & 볼륨
+═══════════════════════════════════════ */
+.bottom-controls {
+  display: flex;
+  gap: 40px;
+  margin-top: 12px;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.inst-row { display: flex; gap: 8px; align-items: center; }
+.inst-btn {
+  padding: 7px 15px;
+  border-radius: 8px;
+  border: 1.5px solid rgba(255,255,255,0.13);
+  background: rgba(255,255,255,0.06);
+  color: #bbb;
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.inst-btn:hover  { background: rgba(255,255,255,0.12); color:#fff; }
+.inst-btn.active { background: #b87020; border-color: #e8b040; color:#fff;
+                   box-shadow: 0 0 12px rgba(190,120,30,0.5); }
+
+/* 건반 너비 버튼 */
+.width-row { display: flex; gap: 8px; align-items: center; }
+.width-label { font-size: 14px; font-weight: 700; color: #bbb; letter-spacing: 1px; white-space: nowrap; }
+.width-btn {
+  padding: 7px 15px;
+  border-radius: 8px;
+  border: 1.5px solid rgba(255,255,255,0.22);
+  background: rgba(255,255,255,0.10);
+  color: #ccc;
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.width-btn:hover { background: rgba(255,255,255,0.20); color:#fff; }
+.width-btn.active {
+  background: #2a7a50;
+  border-color: #60d090;
+  color: #fff;
+  box-shadow: 0 0 12px rgba(40,160,90,0.5);
+}
+
+/* 넓게 모드: 흰 건반 1.5배(85px), 검은 건반 비례(55px) */
+#piano-keyboard.wide .key.white { width: 85px !important; }
+#piano-keyboard.wide .key.black { width: 55px !important; margin: 0 -27px !important; }
+
+.volume-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.vol-label { font-size: 12px; color: #999; letter-spacing:1px; }
+input[type=range].vol-slider {
+  -webkit-appearance: none;
+  width: 130px; height: 6px;
+  border-radius: 3px;
+  background: rgba(255,255,255,0.15);
+  outline: none;
+  cursor: pointer;
+}
+input[type=range].vol-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 17px; height: 17px;
+  border-radius: 50%;
+  background: #d8b850;
+  border: 2px solid #907020;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+}
+</style>
+</head>
+<body>
+
+<h1>음이름과 계이름을 보여주는 피아노</h1>
+
+<!-- 음계 버튼 -->
+<div class="scale-controls">
+
+  <div class="group-box major-box">
+    <button class="scale-btn" id="btn-major" onclick="selectScaleType('major')">장음계</button>
+  </div>
+
+  <div class="group-box minor-box">
+    <button class="scale-btn" id="btn-natural"  onclick="selectScaleType('natural')">자연 단음계</button>
+    <button class="scale-btn" id="btn-harmonic" onclick="selectScaleType('harmonic')">화성 단음계</button>
+    <button class="scale-btn" id="btn-melodic"  onclick="selectScaleType('melodic')">가락 단음계</button>
+  </div>
+
+  <button class="reset-btn" onclick="resetAll()">초기화</button>
+</div>
+
+<!-- 피아노 프레임 -->
+<div class="piano-frame">
+
+  <!-- LCD -->
+  <div class="piano-lcd">
+    <div class="lcd-line1" id="lcd-line1">원하는 음계 버튼과 시작음을 차례대로 누르세요.</div>
+    <div class="lcd-line2" id="lcd-line2">해당하는 계이름의 위치를 보여드리겠습니다.</div>
+  </div>
+
+  <!-- 건반 -->
+  <div class="piano-key-area">
+    <div id="piano-keyboard"></div>
+  </div>
+
+  <!-- 악기 & 볼륨 -->
+  <div class="bottom-controls">
+    <div class="width-row">
+      <span class="width-label">건반 너비</span>
+      <button class="width-btn active" id="btn-narrow" onclick="setKeyWidth('narrow')">좁게</button>
+      <button class="width-btn"        id="btn-wide"   onclick="setKeyWidth('wide')">넓게</button>
+    </div>
+    <div class="inst-row">
+      <span class="width-label">음색</span>
+      <button class="inst-btn active" id="inst-classic"  onclick="setInstrument('classic')">🎹 Classic</button>
+      <button class="inst-btn"        id="inst-electric" onclick="setInstrument('electric')">✨ Electric</button>
+    </div>
+    <div class="volume-row">
+      <span class="vol-label">VOL</span>
+      <input type="range" class="vol-slider" id="vol-ctrl" min="0" max="1" step="0.01" value="0.5">
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* ════════════════════════════════════════════════
+   데이터
+════════════════════════════════════════════════ */
+
+// 25건반: C4 ~ C6
+const ALL_NOTES = [
+  { name:'C4',  freq: 261.63, type:'white' },
+  { name:'C#4', freq: 277.18, type:'black' },
+  { name:'D4',  freq: 293.66, type:'white' },
+  { name:'D#4', freq: 311.13, type:'black' },
+  { name:'E4',  freq: 329.63, type:'white' },
+  { name:'F4',  freq: 349.23, type:'white' },
+  { name:'F#4', freq: 369.99, type:'black' },
+  { name:'G4',  freq: 392.00, type:'white' },
+  { name:'G#4', freq: 415.30, type:'black' },
+  { name:'A4',  freq: 440.00, type:'white' },
+  { name:'A#4', freq: 466.16, type:'black' },
+  { name:'B4',  freq: 493.88, type:'white' },
+  { name:'C5',  freq: 523.25, type:'white' },
+  { name:'C#5', freq: 554.37, type:'black' },
+  { name:'D5',  freq: 587.33, type:'white' },
+  { name:'D#5', freq: 622.25, type:'black' },
+  { name:'E5',  freq: 659.25, type:'white' },
+  { name:'F5',  freq: 698.46, type:'white' },
+  { name:'F#5', freq: 739.99, type:'black' },
+  { name:'G5',  freq: 783.99, type:'white' },
+  { name:'G#5', freq: 830.61, type:'black' },
+  { name:'A5',  freq: 880.00, type:'white' },
+  { name:'A#5', freq: 932.33, type:'black' },
+  { name:'B5',  freq: 987.77, type:'white' },
+  { name:'C6',  freq:1046.50, type:'white' },
+];
+
+// 흰 건반 음이름 (한글 음이름: 다 라 마 바 사 가 나)
+const NOTE_KOR = { C:'다', D:'라', E:'마', F:'바', G:'사', A:'가', B:'나' };
+
+// 계이름 배열
+const SOLFEGE = ['도','레','미','파','솔','라','시'];
+
+// 음계 반음 패턴 (root 로부터의 반음 수)
+const SCALE_INTERVALS = {
+  major:    [0, 2, 4, 5, 7, 9, 11],
+  natural:  [0, 2, 3, 5, 7, 8, 10],
+  harmonic: [0, 2, 3, 5, 7, 8, 11],
+  melodic:  [0, 2, 3, 5, 7, 9, 11],
+};
+
+// 흰 건반 tonic 조성명 (한글)
+const TONIC_KOR_WHITE = { C:'다', D:'라', E:'마', F:'바', G:'사', A:'가', B:'나' };
+
+// 검은 건반 tonic 조성명 — 장조용 (이명동음 양쪽 표기)
+const TONIC_MAJOR_BLACK = {
+  'C#': '올림 다(내림 라)',
+  'D#': '내림 마(올림 라)',
+  'F#': '올림 바(내림 사)',
+  'G#': '내림 라(올림 사)',
+  'A#': '내림 나(올림 가)'
+};
+// 검은 건반 tonic 조성명 — 단조용 (이명동음 양쪽 표기)
+const TONIC_MINOR_BLACK = {
+  'C#': '올림 다(내림 라)',
+  'D#': '내림 마(올림 라)',
+  'F#': '올림 바(내림 사)',
+  'G#': '내림 라(올림 사)',
+  'A#': '내림 나(올림 가)'
+};
+
+// 검은 건반 표시명 (액정 표기)
+const BLACK_DISPLAY = {
+  'C#':'Db=C#', 'D#':'Eb=D#', 'F#':'Gb=F#', 'G#':'Ab=G#', 'A#':'Bb=A#'
+};
+
+/* ════════════════════════════════════════════════
+   상태
+════════════════════════════════════════════════ */
+let selectedScaleType = null;
+let tonicLocked       = false;   // true이면 계이름 고정, 건반만 연주
+let currentInstrument = 'classic';
+
+/* ════════════════════════════════════════════════
+   오디오 엔진
+════════════════════════════════════════════════ */
+const audioCtx    = new (window.AudioContext || window.webkitAudioContext)();
+const masterGain  = audioCtx.createGain();
+masterGain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+masterGain.connect(audioCtx.destination);
+
+const activeVoices   = {};
+const activePointers = {};
+
+const instPresets = {
+  classic:  { attack: 0.005, release: 1.5 },
+  electric: { attack: 0.010, release: 0.6 },
+};
+
+async function playNote(noteName) {
+  if (audioCtx.state === 'suspended') await audioCtx.resume();
+  if (activeVoices[noteName]) stopNote(noteName);
+
+  const note = ALL_NOTES.find(n => n.name === noteName);
+  if (!note) return;
+
+  document.getElementById(`key-${noteName}`)?.classList.add('pressed');
+
+  const now  = audioCtx.currentTime;
+  const p    = instPresets[currentInstrument];
+  const gain = audioCtx.createGain();
+  const filt = audioCtx.createBiquadFilter();
+  let oscs   = [];
+
+  if (currentInstrument === 'classic') {
+    const o1 = audioCtx.createOscillator(); o1.type = 'triangle';
+    o1.frequency.setValueAtTime(note.freq, now);
+    const o2 = audioCtx.createOscillator(); o2.type = 'sine';
+    o2.frequency.setValueAtTime(note.freq * 2, now);
+    const g2 = audioCtx.createGain(); g2.gain.setValueAtTime(0.18, now);
+    const hm = audioCtx.createOscillator(); hm.type = 'sine';
+    hm.frequency.setValueAtTime(note.freq * 3, now);
+    const hg = audioCtx.createGain();
+    hg.gain.setValueAtTime(0.55, now);
+    hg.gain.exponentialRampToValueAtTime(0.0001, now + 0.1);
+    o1.connect(filt); o2.connect(g2).connect(filt); hm.connect(hg).connect(filt);
+    oscs.push(o1, o2, hm);
+    filt.type = 'lowpass';
+    filt.frequency.setValueAtTime(4000, now);
+    filt.frequency.exponentialRampToValueAtTime(800, now + 2.0);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + 4);
+  } else {
+    const body = audioCtx.createOscillator(); body.type = 'sine';
+    body.frequency.setValueAtTime(note.freq, now);
+    const tine = audioCtx.createOscillator(); tine.type = 'sine';
+    tine.frequency.setValueAtTime(note.freq * 4, now);
+    const tg = audioCtx.createGain();
+    tg.gain.setValueAtTime(0.28, now);
+    tg.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+    body.connect(filt); tine.connect(tg).connect(filt);
+    oscs.push(body, tine);
+    filt.type = 'lowpass'; filt.frequency.setValueAtTime(2500, now);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + 5);
+  }
+
+  gain.gain.setValueAtTime(0.0001, now);
+  gain.gain.linearRampToValueAtTime(0.4, now + p.attack);
+  filt.connect(gain).connect(masterGain);
+  oscs.forEach(o => o.start(now));
+  activeVoices[noteName] = { oscs, gain };
+}
+
+function stopNote(noteName) {
+  const v = activeVoices[noteName];
+  if (!v) return;
+  const now = audioCtx.currentTime;
+  const rel = instPresets[currentInstrument].release;
+  document.getElementById(`key-${noteName}`)?.classList.remove('pressed');
+  const safe = Math.max(v.gain.gain.value, 0.0001);
+  v.gain.gain.cancelScheduledValues(now);
+  v.gain.gain.setValueAtTime(safe, now);
+  v.gain.gain.exponentialRampToValueAtTime(0.0001, now + rel);
+  v.oscs.forEach(o => { try { o.stop(now + rel + 0.1); } catch(e){} });
+  delete activeVoices[noteName];
+}
+
+/* ════════════════════════════════════════════════
+   포인터 이벤트 (멀티터치 + 슬라이딩)
+════════════════════════════════════════════════ */
+window.addEventListener('pointerdown', e => {
+  const keyEl = e.target.closest('.key');
+  if (!keyEl) return;
+  e.preventDefault();
+  const noteName = keyEl.id.replace('key-', '');
+
+  // 음계가 선택됐고 아직 tonic이 고정되지 않은 상태 → tonic 선택
+  if (selectedScaleType && !tonicLocked) {
+    handleTonicSelect(noteName);
+    // handleTonicSelect 안에서 tonicLocked = true 로 설정됨
+  }
+  activePointers[e.pointerId] = noteName;
+  try { keyEl.releasePointerCapture(e.pointerId); } catch(err){}
+  playNote(noteName);
+}, { passive: false });
+
+window.addEventListener('pointermove', e => {
+  if (!activePointers.hasOwnProperty(e.pointerId)) return;
+  const el    = document.elementFromPoint(e.clientX, e.clientY);
+  const keyEl = el ? el.closest('.key') : null;
+  if (keyEl) {
+    const nname = keyEl.id.replace('key-', '');
+    const prev  = activePointers[e.pointerId];
+    if (prev !== nname) {
+      if (prev) stopNote(prev);
+      activePointers[e.pointerId] = nname;
+      playNote(nname);
+    }
+  } else {
+    const prev = activePointers[e.pointerId];
+    if (prev) { stopNote(prev); activePointers[e.pointerId] = null; }
+  }
+});
+
+['pointerup','pointercancel'].forEach(evt => {
+  window.addEventListener(evt, e => {
+    if (!activePointers.hasOwnProperty(e.pointerId)) return;
+    const prev = activePointers[e.pointerId];
+    if (prev) stopNote(prev);
+    delete activePointers[e.pointerId];
+  });
+});
+
+/* ════════════════════════════════════════════════
+   건반 렌더링 (25건반 고정)
+════════════════════════════════════════════════ */
+function renderKeyboard() {
+  const container = document.getElementById('piano-keyboard');
+  container.innerHTML = '';
+
+  ALL_NOTES.forEach(note => {
+    const keyEl = document.createElement('div');
+    keyEl.className = `key ${note.type}`;
+    keyEl.id = `key-${note.name}`;
+
+    // 음이름 라벨: 흰 건반만 (숫자 없이 알파벳+한글 세로)
+    if (note.type === 'white') {
+      const eng = note.name.replace(/[0-9]/g, '');   // C4 → C
+      const kor = NOTE_KOR[eng] || '';
+      const lbl = document.createElement('div');
+      lbl.className = 'note-name-label';
+      lbl.innerHTML =
+        `<span class="note-eng">${eng}</span>` +
+        `<span class="note-kor">${kor}</span>`;
+      keyEl.appendChild(lbl);
+    }
+
+    // 계이름 뱃지 (초기 hidden)
+    const badge = document.createElement('div');
+    badge.className = 'solfege-badge hidden';
+    badge.id = `badge-${note.name}`;
+    keyEl.appendChild(badge);
+
+    container.appendChild(keyEl);
+  });
+}
+
+/* ════════════════════════════════════════════════
+   음계 버튼 클릭
+════════════════════════════════════════════════ */
+function selectScaleType(type) {
+  selectedScaleType = type;
+  tonicLocked       = false;   // 새 음계 선택 → tonic 재선택 허용
+
+  const ids = ['btn-major','btn-natural','btn-harmonic','btn-melodic'];
+  ids.forEach(id => {
+    document.getElementById(id).classList.remove('active-major','active-minor');
+  });
+  const targetId = { major:'btn-major', natural:'btn-natural',
+                     harmonic:'btn-harmonic', melodic:'btn-melodic' }[type];
+  const cls = (type === 'major') ? 'active-major' : 'active-minor';
+  document.getElementById(targetId).classList.add(cls);
+
+  const lcdLine1Map = {
+    major:    '장음계를 고르셨군요, 이제 시작음을 눌러주세요!',
+    natural:  '자연 단음계를 고르셨군요, 이제 시작음을 눌러주세요!',
+    harmonic: '화성 단음계를 고르셨군요, 이제 시작음을 눌러주세요!',
+    melodic:  '가락 단음계를 고르셨군요, 이제 시작음을 눌러주세요!',
+  };
+  clearBadges();
+  setLcd(
+    lcdLine1Map[type],
+    '건반을 누르면 계이름이 표시됩니다.'
+  );
+}
+
+/* ════════════════════════════════════════════════
+   Tonic 건반 클릭 → 계이름 표시
+════════════════════════════════════════════════ */
+function handleTonicSelect(noteName) {
+  const note   = ALL_NOTES.find(n => n.name === noteName);
+  if (!note) return;
+
+  const base    = noteName.replace(/[0-9]/g, '');
+  const isBlack = (note.type === 'black');
+  const tonicIdx = ALL_NOTES.indexOf(note);
+  const intervals = SCALE_INTERVALS[selectedScaleType];
+
+  clearBadges();
+
+  intervals.forEach((semitones, degree) => {
+    const solfName   = SOLFEGE[degree];
+    const isTonic    = (degree === 0);
+
+    ALL_NOTES.forEach((n, idx) => {
+      const diff = ((idx - tonicIdx) % 12 + 12) % 12;
+      if (diff === semitones) {
+        const badge = document.getElementById(`badge-${n.name}`);
+        if (!badge) return;
+        badge.textContent = solfName;
+        badge.classList.remove('hidden', 'tonic');
+        if (isTonic) badge.classList.add('tonic');
+        // 해당 건반에 약한 주황빛 배경 적용
+        document.getElementById(`key-${n.name}`)?.classList.add('has-solfege');
+      }
+    });
+  });
+
+  // 계이름 확정 → 이후 건반을 눌러도 계이름은 바뀌지 않음
+  tonicLocked = true;
+
+  const { line1, line2 } = buildLcdText(selectedScaleType, base, isBlack);
+  setLcd(line1, line2);
+}
+
+/* ════════════════════════════════════════════════
+   LCD 텍스트 생성
+════════════════════════════════════════════════ */
+function buildLcdText(scaleType, base, isBlack) {
+  // tonic 한글 조성명
+  let tonicName;
+  if (!isBlack) {
+    tonicName = TONIC_KOR_WHITE[base] || base;
+  } else {
+    tonicName = (scaleType === 'major')
+      ? (TONIC_MAJOR_BLACK[base] || base)
+      : (TONIC_MINOR_BLACK[base] || base);
+  }
+
+  const scaleKorMap = {
+    major:    '장음계', natural: '자연 단음계',
+    harmonic: '화성 단음계', melodic: '가락 단음계',
+  };
+  const scaleKor = scaleKorMap[scaleType];
+
+  // 장조/단조 접미사
+  const suffix = (scaleType === 'major') ? '장조' : '단조';
+
+  // 장조: '~장조의 음계를', 단음계: '~단조의 자연/화성/가락 단음계를'
+  const displayScale = (scaleType === 'major') ? '음계' : scaleKor;
+
+  // 검은 건반 tonic은 '내림 마(올림 라)단조' 형식
+  let line1;
+  if (!isBlack) {
+    line1 = `${tonicName}${suffix}의 ${displayScale}를 선택하셨습니다.`;
+  } else {
+    line1 = `${tonicName}${suffix}의 ${displayScale}를 선택하셨습니다.`;
+  }
+
+  const line2Map = {
+    major:    '장조는 3-4음과 7-8음 사이가 반음입니다.',
+    natural:  '자연 단음계는 2-3음과 5-6음 사이가 반음입니다.',
+    harmonic: '화성 단음계는 자연 단음계에서 7음을 반음 올린 것입니다.',
+    melodic:  '가락 단음계는 자연 단음계에서 6, 7음을 반음 올린 것입니다.',
+  };
+
+  return { line1, line2: line2Map[scaleType] };
+}
+
+/* ════════════════════════════════════════════════
+   유틸
+════════════════════════════════════════════════ */
+function setLcd(l1, l2) {
+  document.getElementById('lcd-line1').textContent = l1;
+  document.getElementById('lcd-line2').textContent = l2;
+}
+
+function clearBadges() {
+  document.querySelectorAll('.solfege-badge').forEach(b => {
+    b.classList.add('hidden');
+    b.classList.remove('tonic');
+    b.textContent = '';
+  });
+  document.querySelectorAll('.key.has-solfege').forEach(k => {
+    k.classList.remove('has-solfege');
+  });
+}
+
+function resetAll() {
+  selectedScaleType = null;
+  tonicLocked       = false;
+  clearBadges();
+  ['btn-major','btn-natural','btn-harmonic','btn-melodic'].forEach(id => {
+    document.getElementById(id).classList.remove('active-major','active-minor');
+  });
+  setLcd(
+    '원하는 음계 버튼과 시작음을 차례대로 누르세요.',
+    '해당하는 계이름의 위치를 보여드리겠습니다.'
+  );
+}
+
+function setInstrument(inst) {
+  currentInstrument = inst;
+  document.querySelectorAll('.inst-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(`inst-${inst}`).classList.add('active');
+}
+
+function setKeyWidth(mode) {
+  const kb = document.getElementById('piano-keyboard');
+  if (mode === 'wide') {
+    kb.classList.add('wide');
+  } else {
+    kb.classList.remove('wide');
+  }
+  document.querySelectorAll('.width-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(`btn-${mode}`).classList.add('active');
+}
+
+/* ════════════════════════════════════════════════
+   볼륨
+════════════════════════════════════════════════ */
+document.getElementById('vol-ctrl').oninput = e => {
+  masterGain.gain.setTargetAtTime(parseFloat(e.target.value), audioCtx.currentTime, 0.05);
+};
+
+/* ════════════════════════════════════════════════
+   초기 실행
+════════════════════════════════════════════════ */
+renderKeyboard();
+
+// 첫 터치로 AudioContext 재개 (브라우저 정책)
+window.addEventListener('pointerdown', () => {
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+}, { once: true, capture: true });
+</script>
+</body>
+</html>
