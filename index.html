@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>음이름과 계이름을 보여주는 피아노</title>
+<title>음이름과 계이름을 보여주는 피아노 v1.6</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&display=swap" rel="stylesheet">
 <style>
 /* ═══════════════════════════════════════
@@ -119,13 +119,13 @@ h1 {
 ═══════════════════════════════════════ */
 .piano-frame {
   background: linear-gradient(180deg,
-    #6b2010 0%, #4e1608 35%, #5a1c0e 65%, #3e1005 100%);
+    #D62828 0%, #b82020 35%, #c42424 65%, #8a1515 100%);
   border-radius: 16px;
   padding: 14px 16px 16px;
   box-shadow:
-    inset 0 2px 8px rgba(255,160,80,0.12),
+    inset 0 2px 8px rgba(255,120,120,0.18),
     0 16px 52px rgba(0,0,0,0.70);
-  border: 2px solid #7a3018;
+  border: 2px solid #e03535;
   display: inline-block;
   max-width: 100%;
 }
@@ -431,7 +431,7 @@ input[type=range].vol-slider::-webkit-slider-thumb {
 </head>
 <body>
 
-<h1>음이름과 계이름을 보여주는 피아노</h1>
+<h1>음이름과 계이름을 보여주는 피아노<span style="font-size:clamp(11px,1.5vw,16px);font-weight:700;color:#b8c8d8;letter-spacing:1px;margin-left:10px;opacity:0.75;vertical-align:middle;">v1.6</span></h1>
 
 <!-- 음계 버튼 -->
 <div class="scale-controls">
@@ -557,6 +557,57 @@ const BLACK_DISPLAY = {
 };
 
 /* ════════════════════════════════════════════════
+   조성별 임시표 개수 (장조 / 단조 공통 키 시그니처)
+   양수 = 샵, 음수 = 플랫 개수
+════════════════════════════════════════════════ */
+const KEY_SIGNATURE = {
+  // 장조
+  major: {
+    'C':0, 'G':1, 'D':2, 'A':3, 'E':4, 'B':5, 'F#':6,
+    'F':-1, 'A#':-2, 'D#':-3, 'G#':-4, 'C#':-5, 'F#_flat':-6
+  },
+  // 단조 (natural/harmonic/melodic 모두 같은 조표)
+  minor: {
+    'A':0, 'E':1, 'B':2, 'F#':3, 'C#':4, 'G#':5, 'D#':6,
+    'D':-1, 'G':-2, 'C':-3, 'F':-4, 'A#':-5, 'D#_flat':-6
+  }
+};
+
+// 장조 임시표 조회: base(음이름 영문) → 정수 (양수=샵, 음수=플랫)
+function getKeySignatureCount(scaleType, base) {
+  const isMajor = (scaleType === 'major');
+  const table = isMajor ? KEY_SIGNATURE.major : KEY_SIGNATURE.minor;
+
+  // 장조: C G D A E B F# / F Bb Eb Ab Db Gb
+  // 단조: A E B F# C# G# D# / D G C F Bb Eb
+  // ALL_NOTES 기준 이명동음 처리
+  // D# = Eb(장조 플랫3, 단조 샵6), A# = Bb(장조 플랫2, 단조 플랫5)
+  // C# = Db(장조 플랫5, 단조 샵4), G# = Ab(장조 플랫4, 단조 샵5), F# = Gb(장조 플랫6, 단조 샵3)
+
+  // 이명동음 분기 테이블 (base → {major, minor})
+  const enharmonic = {
+    'C#': { major: -5, minor:  4 },
+    'D#': { major: -3, minor: -6 },  // Eb단조 → b6개
+    'F#': { major: -6, minor:  3 },  // Gb장조 → b6개
+    'G#': { major: -4, minor:  5 },
+    'A#': { major: -2, minor: -5 },
+  };
+
+  if (enharmonic[base] !== undefined) {
+    return isMajor ? enharmonic[base].major : enharmonic[base].minor;
+  }
+  return table[base] !== undefined ? table[base] : null;
+}
+
+// 임시표 개수 → 한글 표기 문자열 ("샵 3개" / "플랫 2개" / "임시표 없음")
+function accidentalLabel(count) {
+  if (count === null) return '';
+  if (count === 0)    return '임시표 없음';
+  if (count > 0)      return `#${count}개`;
+  return `b ${Math.abs(count)}개`;
+}
+
+/* ════════════════════════════════════════════════
    상태
 ════════════════════════════════════════════════ */
 let selectedScaleType = null;
@@ -593,6 +644,27 @@ function unlockAudio() {
     src.connect(audioCtx.destination);
     src.start(0);
   } catch(e) {}
+}
+
+// 음계 버튼 클릭 시 오디오 엔진을 미리 깨우는 워밍업
+// 모든 건반에 극소음(–60dB)을 0.02초 재생해 Web Audio 내부 스케줄러를 활성화
+function warmupAudio() {
+  ensureAudioCtx();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  const now = audioCtx.currentTime;
+  ALL_NOTES.forEach(n => {
+    try {
+      const o = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      o.frequency.setValueAtTime(n.freq, now);
+      g.gain.setValueAtTime(0.00001, now);   // 사실상 무음
+      g.gain.linearRampToValueAtTime(0.00001, now + 0.02);
+      g.gain.linearRampToValueAtTime(0.0,     now + 0.03);
+      o.connect(g).connect(masterGain);
+      o.start(now);
+      o.stop(now + 0.03);
+    } catch(e) {}
+  });
 }
 
 const activeVoices   = {};
@@ -762,6 +834,9 @@ function selectScaleType(type) {
   selectedScaleType = type;
   tonicLocked       = false;   // 새 음계 선택 → tonic 재선택 허용
 
+  // 오디오 엔진 워밍업: 버튼 클릭(사용자 제스처) 안에서 미리 깨워 첫음 지연 방지
+  warmupAudio();
+
   const ids = ['btn-major','btn-natural','btn-harmonic','btn-melodic'];
   ids.forEach(id => {
     document.getElementById(id).classList.remove('active-major','active-minor');
@@ -849,13 +924,12 @@ function buildLcdText(scaleType, base, isBlack) {
   // 장조: '~장조의 음계를', 단음계: '~단조의 자연/화성/가락 단음계를'
   const displayScale = (scaleType === 'major') ? '음계' : scaleKor;
 
-  // 검은 건반 tonic은 '내림마(올림라)단조' 형식
-  let line1;
-  if (!isBlack) {
-    line1 = `${tonicName}${suffix}의 ${displayScale}를 선택하셨습니다.`;
-  } else {
-    line1 = `${tonicName}${suffix}의 ${displayScale}를 선택하셨습니다.`;
-  }
+  // 임시표 개수 표기
+  const accCount = getKeySignatureCount(scaleType, base);
+  const accText  = accidentalLabel(accCount);
+  const accSuffix = accText ? ` (${accText})` : '';
+
+  const line1 = `${tonicName}${suffix}의 ${displayScale}를 선택하셨습니다.${accSuffix}`;
 
   const line2Map = {
     major:    '장조는 3-4음과 7-8음 사이가 반음입니다.',
@@ -937,7 +1011,13 @@ kb.addEventListener('touchstart', e => {
   unlockAudio();   // iOS: touchstart 안에서도 unlock 보장
   e.preventDefault();
 }, { passive: false });
-kb.addEventListener('touchmove',  e => e.preventDefault(), { passive: false });
+kb.addEventListener('touchmove', e => {
+  const area = kb.parentElement; // .piano-key-area
+  const touch = e.touches[0];
+  const rect = area.getBoundingClientRect();
+  if (touch.clientY > rect.bottom - 28) return; // 스크롤바 영역 통과
+  e.preventDefault();
+}, { passive: false });
 </script>
 </body>
 </html>
